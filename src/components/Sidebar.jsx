@@ -31,7 +31,7 @@ const IconDot = ({ paid }) => (
 export default function Sidebar({
   patients, appointments, selectedPatientId,
   onSelectPatient, onSelectDashboard, onAddPatient,
-  searchQuery, setSearchQuery, view
+  searchQuery, setSearchQuery, view, isOpen, setIsOpen
 }) {
   const filtered = patients.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,12 +45,22 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="w-72 flex-shrink-0 h-screen flex flex-col border-r border-white/7 relative z-10"
+    <aside className={`w-72 flex-shrink-0 h-screen flex flex-col border-r border-white/7 absolute top-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       style={{ background: 'rgba(9,14,26,0.8)', backdropFilter: 'blur(20px)' }}>
+      
+      {/* Mobile close button */}
+      <div className="absolute top-4 right-4 md:hidden">
+        <button onClick={() => setIsOpen && setIsOpen(false)} className="p-2 text-slate-400 hover:text-white">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
 
       {/* Logo / Header */}
       <div className="px-5 pt-6 pb-4">
-        <div className="flex items-center gap-2.5 mb-1">
+        <div className="flex items-center gap-2.5 mb-1 pr-8">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center shadow-glow-teal">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>

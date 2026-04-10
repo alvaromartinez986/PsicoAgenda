@@ -26,6 +26,8 @@ export function calendarEventToAppointment(event, patientId = null) {
     currency: 'MXN',
     paid: event.extendedProperties?.private?.psicoagenda_paid === 'true',
     notes: event.summary || '',
+    colorId: event.colorId || null,
+    isCancelled: ['11', '4'].includes(event.colorId),
     attendees: (event.attendees || []).map(a => ({
       email: a.email?.toLowerCase(),
       displayName: a.displayName || ''

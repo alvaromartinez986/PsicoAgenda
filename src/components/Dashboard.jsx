@@ -39,22 +39,32 @@ export default function Dashboard({
   googleUser, onGoogleConnect, onGoogleDisconnect, onImportCalendar
 }) {
   const now = new Date()
-  const thisMonth = appointments.filter(a => {
-    const d = new Date(a.date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
-  const totalRevenue = appointments.filter(a => a.paid).reduce((s, a) => s + (a.amount || 0), 0)
-  const pendingRevenue = appointments.filter(a => !a.paid).reduce((s, a) => s + (a.amount || 0), 0)
-  const pendingCount = appointments.filter(a => !a.paid).length
+  
+  const totalRevenue = appointments.filter(a => a.paid && !a.isCancelled).reduce((s, a) => s + (a.amount || 0), 0)
+  const pendingRevenue = appointments.filter(a => !a.paid && !a.isCancelled).reduce((s, a) => s + (a.amount || 0), 0)
+  const pendingCount = appointments.filter(a => !a.paid && !a.isCancelled).length
+
+  const cancelledCount = appointments.filter(a => a.isCancelled).length
 
   // Recent appointments (last 5)
   const recent = [...appointments]
+    .filter(a => !a.isCancelled)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5)
 
   // Patients with pending payments
   const patientsWithPending = patients.filter(p =>
-    appointments.some(a => a.patientId === p.id && !a.paid)
+    appointments.some(a => a.patientId === p.id && !a.paid && !a.isCancelled)
+  )
+
+  // Patients with completed payments (have appointments, and none are pending)
+  const patientsWithCompleted = patients.filter(p =>
+    appointments.some(a => a.patientId === p.id && !a.isCancelled) &&
+    !appointments.some(a => a.patientId === p.id && !a.paid && !a.isCancelled)
+  )
+
+  const patientsWithCancelled = patients.filter(p =>
+    appointments.some(a => a.patientId === p.id && a.isCancelled)
   )
 
   const stats = [
@@ -67,12 +77,12 @@ export default function Dashboard({
       iconColor: 'text-blue-400',
     },
     {
-      label: 'Citas este mes',
-      value: thisMonth.length,
-      icon: <IconCalendar />,
-      color: 'from-teal-500/20 to-cyan-500/10',
-      border: 'border-teal-500/20',
-      iconColor: 'text-teal-400',
+      label: 'Citas Canceladas',
+      value: cancelledCount,
+      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
+      color: 'from-rose-500/20 to-red-500/10',
+      border: 'border-rose-500/20',
+      iconColor: 'text-rose-400',
     },
     {
       label: 'Total cobrado',
@@ -93,9 +103,9 @@ export default function Dashboard({
   ]
 
   return (
-    <div className="p-8 max-w-5xl mx-auto animate-fade-in">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
         <div>
           <h2 className="font-display text-3xl font-bold text-white mb-1">
             Buenos días <span className="text-gradient">👋</span>
@@ -143,7 +153,7 @@ export default function Dashboard({
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
         {stats.map((s, i) => (
           <div
             key={i}
@@ -157,9 +167,9 @@ export default function Dashboard({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pending payments */}
-        <div className="glass-card p-5">
+        <div className="glass-card p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display font-semibold text-white flex items-center gap-2">
               <IconAlertCircle />
@@ -179,9 +189,9 @@ export default function Dashboard({
               <p className="text-slate-500 text-sm">¡Sin pagos pendientes!</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: '400px' }}>
               {patientsWithPending.map(p => {
-                const pend = appointments.filter(a => a.patientId === p.id && !a.paid)
+                const pend = appointments.filter(a => a.patientId === p.id && !a.paid && !a.isCancelled)
                 const total = pend.reduce((s, a) => s + (a.amount || 0), 0)
                 return (
                   <button
@@ -207,38 +217,99 @@ export default function Dashboard({
           )}
         </div>
 
-        {/* Recent appointments */}
-        <div className="glass-card p-5">
-          <h3 className="font-display font-semibold text-white flex items-center gap-2 mb-4">
-            <IconCalendar />
-            Últimas Citas Registradas
-          </h3>
-          {recent.length === 0 ? (
+        {/* Completed payments */}
+        <div className="glass-card p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-semibold text-white flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Pagos Completos
+              {patientsWithCompleted.length > 0 && (
+                <span className="badge-paid">{patientsWithCompleted.length}</span>
+              )}
+            </h3>
+          </div>
+          {patientsWithCompleted.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-500 text-sm">Sin citas registradas aún.</p>
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <p className="text-slate-500 text-sm">Sin pacientes con pagos completos aún.</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {recent.map(a => {
-                const patient = patients.find(p => p.id === a.patientId)
+            <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: '400px' }}>
+              {patientsWithCompleted.map(p => {
+                const completedAppts = appointments.filter(a => a.patientId === p.id && a.paid && !a.isCancelled)
+                const total = completedAppts.reduce((s, a) => s + (a.amount || 0), 0)
                 return (
                   <button
-                    key={a.id}
-                    onClick={() => patient && onSelectPatient(patient.id)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all text-left border border-transparent hover:border-white/10"
+                    key={p.id}
+                    onClick={() => onSelectPatient(p.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group text-left border border-transparent hover:border-white/10"
                   >
-                    {patient && (
-                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarColor(patient.name)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
-                        {getInitials(patient.name)}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white font-medium truncate">{patient?.name || 'Paciente'}</p>
-                      <p className="text-xs text-slate-500">{a.date} · {a.time}</p>
+                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${getAvatarColor(p.name)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                      {getInitials(p.name)}
                     </div>
-                    <span className={a.paid ? 'badge-paid' : 'badge-pending'}>
-                      {a.paid ? '✓ Pagado' : '⏳ Pendiente'}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                      <p className="text-xs text-slate-500">{completedAppts.length} cita(s) pagada(s)</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-semibold text-emerald-400">{formatCurrency(total)}</p>
+                      <IconArrow className="text-slate-600 group-hover:text-slate-400 ml-auto" />
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Cancelled appointments */}
+        <div className="glass-card p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-semibold text-white flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              Citas Canceladas
+              {patientsWithCancelled.length > 0 && (
+                <span className="badge-cancelled">{patientsWithCancelled.length}</span>
+              )}
+            </h3>
+          </div>
+          {patientsWithCancelled.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <p className="text-slate-500 text-sm">Sin pacientes con cancelaciones.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: '400px' }}>
+              {patientsWithCancelled.map(p => {
+                const cancelledAppts = appointments.filter(a => a.patientId === p.id && a.isCancelled)
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onSelectPatient(p.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all group text-left border border-transparent hover:border-white/10"
+                  >
+                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${getAvatarColor(p.name)} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                      {getInitials(p.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                      <p className="text-xs text-slate-500">{cancelledAppts.length} cita(s)</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <IconArrow className="text-slate-600 group-hover:text-slate-400 ml-auto" />
+                    </div>
                   </button>
                 )
               })}
@@ -256,7 +327,7 @@ export default function Dashboard({
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {patients.map(p => {
-              const appts = appointments.filter(a => a.patientId === p.id)
+              const appts = appointments.filter(a => a.patientId === p.id && !a.isCancelled)
               const paid = appts.filter(a => a.paid).length
               return (
                 <button

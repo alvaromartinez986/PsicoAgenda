@@ -27,6 +27,7 @@ function AppInner() {
   const [modal, setModal] = useState(null) // null | 'addPatient' | 'addAppointment' | 'importCalendar'
   const [isConnecting, setIsConnecting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Google auth state
   const [googleToken, setGoogleToken] = useState(null)   // access token response
@@ -50,6 +51,7 @@ function AppInner() {
   const handleSelectPatient = (id) => {
     setSelectedPatientId(id)
     setView('patient')
+    setIsMobileMenuOpen(false)
   }
 
   const handleAddPatient = (formData) => {
@@ -132,6 +134,7 @@ function AppInner() {
     }))
     setView('dashboard')
     setSelectedPatientId(null)
+    setIsMobileMenuOpen(false)
   }
 
   // Called when user finishes selecting events in ImportCalendarModal
@@ -162,19 +165,47 @@ function AppInner() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-900/10 rounded-full blur-3xl" />
       </div>
 
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden animate-fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       <Sidebar
         patients={data.patients}
         appointments={data.appointments}
         selectedPatientId={selectedPatientId}
         onSelectPatient={handleSelectPatient}
-        onSelectDashboard={() => { setView('dashboard'); setSelectedPatientId(null) }}
-        onAddPatient={() => setModal('addPatient')}
+        onSelectDashboard={() => { setView('dashboard'); setSelectedPatientId(null); setIsMobileMenuOpen(false); }}
+        onAddPatient={() => { setModal('addPatient'); setIsMobileMenuOpen(false); }}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         view={view}
+        isOpen={isMobileMenuOpen}
+        setIsOpen={setIsMobileMenuOpen}
       />
 
-      <main className="flex-1 overflow-y-auto relative z-10">
+      <main className="flex-1 overflow-y-auto relative z-10 flex flex-col">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-[#090e1a]/80 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center shadow-glow-teal">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </div>
+            <span className="font-display font-bold text-white tracking-tight">PsicoAgenda</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-white/5 rounded-lg border border-white/10 text-white hover:bg-white/10 transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+        </div>
         {view === 'dashboard' ? (
           <Dashboard
             patients={data.patients}

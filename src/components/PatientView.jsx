@@ -55,7 +55,7 @@ const IconUserX = () => (
   </svg>
 )
 
-const FILTERS = ['Todas', 'Pagadas', 'Pendientes']
+const FILTERS = ['Todas', 'Pagadas', 'Pendientes', 'Canceladas']
 
 export default function PatientView({
   patient, appointments, onTogglePaid, onUpdateAmount,
@@ -70,19 +70,20 @@ export default function PatientView({
     </div>
   )
 
-  const totalPaid = appointments.filter(a => a.paid).reduce((s, a) => s + (a.amount || 0), 0)
-  const totalPending = appointments.filter(a => !a.paid).reduce((s, a) => s + (a.amount || 0), 0)
+  const totalPaid = appointments.filter(a => a.paid && !a.isCancelled).reduce((s, a) => s + (a.amount || 0), 0)
+  const totalPending = appointments.filter(a => !a.paid && !a.isCancelled).reduce((s, a) => s + (a.amount || 0), 0)
 
   const filtered = appointments.filter(a => {
-    if (filter === 'Pagadas') return a.paid
-    if (filter === 'Pendientes') return !a.paid
+    if (filter === 'Pagadas') return a.paid && !a.isCancelled
+    if (filter === 'Pendientes') return !a.paid && !a.isCancelled
+    if (filter === 'Canceladas') return a.isCancelled
     return true
   }).sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time))
 
   return (
-    <div className="p-8 max-w-4xl mx-auto animate-fade-in">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto animate-fade-in">
       {/* Patient header */}
-      <div className="glass-card p-6 mb-6 flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between">
+      <div className="glass-card p-4 sm:p-6 mb-6 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between">
         <div className="flex items-center gap-4">
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getAvatarColor(patient.name)} flex items-center justify-center text-xl font-bold text-white shadow-glow-teal flex-shrink-0`}>
             {getInitials(patient.name)}
@@ -105,18 +106,18 @@ export default function PatientView({
         </div>
 
         {/* Mini stats */}
-        <div className="flex gap-4 text-center flex-shrink-0">
-          <div className="glass-card px-4 py-2.5">
-            <p className="text-lg font-display font-bold text-white">{appointments.length}</p>
-            <p className="text-[11px] text-slate-500">citas</p>
+        <div className="grid grid-cols-3 gap-2 w-full lg:w-auto text-center flex-shrink-0">
+          <div className="glass-card px-2 sm:px-4 py-2.5">
+            <p className="text-sm md:text-lg font-display font-bold text-white truncate">{appointments.length}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">citas</p>
           </div>
-          <div className="glass-card px-4 py-2.5">
-            <p className="text-lg font-display font-bold text-teal-400">{formatCurrency(totalPaid)}</p>
-            <p className="text-[11px] text-slate-500">cobrado</p>
+          <div className="glass-card px-2 sm:px-4 py-2.5">
+            <p className="text-sm md:text-lg font-display font-bold text-teal-400 truncate">{formatCurrency(totalPaid)}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">cobrado</p>
           </div>
-          <div className="glass-card px-4 py-2.5">
-            <p className="text-lg font-display font-bold text-amber-400">{formatCurrency(totalPending)}</p>
-            <p className="text-[11px] text-slate-500">pendiente</p>
+          <div className="glass-card px-2 sm:px-4 py-2.5">
+            <p className="text-sm md:text-lg font-display font-bold text-amber-400 truncate">{formatCurrency(totalPending)}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">pendiente</p>
           </div>
         </div>
       </div>
@@ -135,9 +136,9 @@ export default function PatientView({
               }`}
             >
               {f}
-              {f === 'Pendientes' && appointments.filter(a => !a.paid).length > 0 && (
+              {f === 'Pendientes' && appointments.filter(a => !a.paid && !a.isCancelled).length > 0 && (
                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${filter === f ? 'bg-slate-900/30 text-slate-900' : 'bg-amber-500/20 text-amber-400'}`}>
-                  {appointments.filter(a => !a.paid).length}
+                  {appointments.filter(a => !a.paid && !a.isCancelled).length}
                 </span>
               )}
             </button>
@@ -243,12 +244,12 @@ function AppointmentCard({ appt, onTogglePaid, onUpdateAmount, onDelete }) {
 
   return (
     <div className={`glass-card p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center transition-all duration-200 animate-slide-up border ${
-      appt.paid ? 'border-teal-500/20' : 'border-amber-500/15'
+      appt.isCancelled ? 'border-rose-500/20 opacity-75' : appt.paid ? 'border-teal-500/20' : 'border-amber-500/15'
     }`}>
       {/* Date/time block */}
       <div className="flex-shrink-0 w-20 text-center">
-        <div className={`rounded-xl p-2 ${appt.paid ? 'bg-teal-500/10' : 'bg-amber-500/10'}`}>
-          <p className={`text-xs font-semibold ${appt.paid ? 'text-teal-400' : 'text-amber-400'} uppercase`}>
+        <div className={`rounded-xl p-2 ${appt.isCancelled ? 'bg-rose-500/10' : appt.paid ? 'bg-teal-500/10' : 'bg-amber-500/10'}`}>
+          <p className={`text-xs font-semibold ${appt.isCancelled ? 'text-rose-400' : appt.paid ? 'text-teal-400' : 'text-amber-400'} uppercase`}>
             {appt.date ? new Date(appt.date + 'T12:00').toLocaleDateString('es-MX', { month: 'short' }) : '—'}
           </p>
           <p className="text-2xl font-display font-bold text-white leading-none">
@@ -318,21 +319,23 @@ function AppointmentCard({ appt, onTogglePaid, onUpdateAmount, onDelete }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <span className={appt.paid ? 'badge-paid' : 'badge-pending'}>
-          <span className={`w-1.5 h-1.5 rounded-full inline-block ${appt.paid ? 'bg-teal-400' : 'bg-amber-400'}`} />
-          {appt.paid ? 'Pagado' : 'Pendiente'}
+        <span className={appt.isCancelled ? 'badge-cancelled' : appt.paid ? 'badge-paid' : 'badge-pending'}>
+          <span className={`w-1.5 h-1.5 rounded-full inline-block ${appt.isCancelled ? 'bg-rose-400' : appt.paid ? 'bg-teal-400' : 'bg-amber-400'}`} />
+          {appt.isCancelled ? 'Cancelada' : appt.paid ? 'Pagado' : 'Pendiente'}
         </span>
-        <button
-          onClick={onTogglePaid}
-          title={appt.paid ? 'Marcar como pendiente' : 'Marcar como pagado'}
-          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 border ${
-            appt.paid
-              ? 'bg-teal-500/15 border-teal-500/30 text-teal-400 hover:bg-teal-500/25'
-              : 'bg-white/5 border-white/10 text-slate-500 hover:bg-teal-500/15 hover:border-teal-500/30 hover:text-teal-400'
-          }`}
-        >
-          <IconCheck />
-        </button>
+        {!appt.isCancelled && (
+          <button
+            onClick={onTogglePaid}
+            title={appt.paid ? 'Marcar como pendiente' : 'Marcar como pagado'}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 border ${
+              appt.paid
+                ? 'bg-teal-500/15 border-teal-500/30 text-teal-400 hover:bg-teal-500/25'
+                : 'bg-white/5 border-white/10 text-slate-500 hover:bg-teal-500/15 hover:border-teal-500/30 hover:text-teal-400'
+            }`}
+          >
+            <IconCheck />
+          </button>
+        )}
         <button
           onClick={onDelete}
           className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 border border-white/10 text-slate-500 hover:bg-rose-500/15 hover:border-rose-500/30 hover:text-rose-400 transition-all duration-200"
